@@ -38,7 +38,7 @@ pyformatcheck:
 	@echo "[>] ############################################"
 	@echo "[>] checking source formatting violations : "
 	@echo "[>] ############################################"
-	@python3 -m flake8 . --count  --extend-ignore=F811,E266 --max-complexity=12 --max-line-length=127 --statistics
+	@python3 -m flake8 . --count  --extend-ignore=F811,E266 --max-complexity=12 --statistics
 
 clean:
 	@echo "[>] ############################################"
