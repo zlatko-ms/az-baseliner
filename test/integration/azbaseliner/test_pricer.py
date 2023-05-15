@@ -11,23 +11,23 @@ class TestPricingServiceIntegration(unittest.TestCase):
         meterA = "f1a44e37-1c48-567c-a0e0-b55263ef5ceb"
         meterB = "ef8e981f-27ae-50ae-9145-a36ec129424e"
         meterIdList = [meterA, meterB]
-        # when requesting the offer pricing for the above specified region, currency, list of meter ids
+        # when requesting the offer pricing for the above specified region, currency and meter id list
         prices: list = PricingAPIClient.getOfferMonthlyPriceForMeterIdList(regionName, meterIdList, currencyCode)
         # then we get one record per meter id
         self.assertEqual(len(prices), len(meterIdList))
         for i in range(len(meterIdList)):
             price: MonthlyPlanPricing = prices[i]
-            # ensure all pricing fields have been returned, i.e no NaNs
+            # and all pricing fields have been returned, i.e no NaNs
             self.assertFalse(math.isnan(price.ri1y))
             self.assertFalse(math.isnan(price.ri3y))
             self.assertFalse(math.isnan(price.sp1y))
             self.assertFalse(math.isnan(price.sp3y))
-            # ensure global fields (currency, region ) are correctly set up
+            # and all global fields (currency, region ) are correctly set up
             self.assertEqual(price.currency, currencyCode)
             self.assertEqual(price.regionName, regionName)
-            # ensure that no records unrelated to our list have been provided
+            # and there is no records unrelated to our list have been provided
             self.assertTrue(price.meterId in meterIdList)
-            # ensure the pricing info of the 1st meter id is correct
+            # and the pricings are correct for each of the meters
             if price.meterId == meterA:
                 self.assertEqual(price.ri3y, 115.55)
                 self.assertEqual(price.ri1y, 179.37)

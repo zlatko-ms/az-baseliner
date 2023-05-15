@@ -6,16 +6,6 @@ from unittest.mock import patch
 from azbaseliner.pricing.pricer import PricingAPIClient, MonthlyPlanPricing, PricingAPIConstants
 
 
-class TestMe(object):
-    @classmethod
-    def val(ctx) -> int:
-        return 42
-
-    @classmethod
-    def truc(ctx) -> str:
-        return f"value is {ctx.val()}"
-
-
 class TestPricing(unittest.TestCase):
     currencyCode: str = "EUR"
     regionName = "westeurope"
@@ -84,20 +74,3 @@ class TestPricing(unittest.TestCase):
                     self.assertEqual(price.ri1y, 179.37)
                     self.assertEqual(price.sp3y, 166.87)
                     self.assertEqual(price.sp1y, 232.43)
-
-    # def test_02_call_pricing_api(self) -> None:
-    #     regionName = "westeurope"
-    #     currencyCode = "EUR"
-    #     meterIdList = ["f1a44e37-1c48-567c-a0e0-b55263ef5ceb", "ef8e981f-27ae-50ae-9145-a36ec129424e"]
-    #     prices: list = PricingAPIClient.getOfferMonthlyPriceForMeterIdList(regionName, meterIdList, currencyCode)
-    #     self.assertEqual(len(prices), len(meterIdList))
-    #     for i in range(len(meterIdList)):
-    #         price: MonthlyPlanPricing = prices[i]
-    #         self.assertFalse(math.isnan(price.ri1y))
-    #         self.assertFalse(math.isnan(price.ri3y))
-    #         self.assertFalse(math.isnan(price.sp1y))
-    #         self.assertFalse(math.isnan(price.sp3y))
-    #         self.assertEqual(price.currency, currencyCode)
-    #         self.assertEqual(price.regionName, regionName)
-    #         self.assertTrue(price.meterId in meterIdList)
-    #         print(f"meterId={price.meterId} ri3y={price.ri3y} ri1y={price.ri1y} sp3y={price.sp3y} sp1y={price.sp1y}")
