@@ -9,12 +9,12 @@ INTEGTESTDIR:= "./test/integration"
 
 UNITTEST=test.azbaseliner.test_iotools.TestIOTools.test_listToFile
 
-all: clean dependencies format tests acceptance
+all: clean dependencies format alltests
 githubpipeline: pyformatcheck tests
 format: tounix pyformat pyformatcheck
 tests: unit-tests
 buildtests: unit-tests integ-tests
-alltests: unit-tests integ-tests acceptance-tests
+alltests: unit-tests integ-tests uat
 
 dependencies:
 	@echo "[>] ############################################"
@@ -44,7 +44,7 @@ pyformatcheck:
 	@echo "[>] ############################################"
 	@echo "[>] checking source formatting violations : "
 	@echo "[>] ############################################"
-	@python3 -m flake8 . --count  --extend-ignore=F811,E266 --max-complexity=12 --statistics
+	@python3 -m flake8 . --count  --extend-ignore=F811,E266,E203 --max-complexity=12 --statistics
 
 clean:
 	@echo "[>] ############################################"
@@ -71,13 +71,13 @@ singletest:
 	@echo "[>] ############################################"
 	@python3 -m nose2 -v $(UNITTEST) -s $(INTEGTESTDIR) -t .
 
-acceptance-tests:
+uat:
 	@echo "[>] ############################################"
 	@echo "[>] running uat from directory $(UATDIR)"
 	@echo "[>] ############################################"
 	@python3 -m behave $(UATDIR)
 
-acceptance-tests-debug:
+uat-debug:
 	@echo "[>] ############################################"
 	@echo "[>] running uat from directory $(UATDIR)"
 	@echo "[>] ############################################"
