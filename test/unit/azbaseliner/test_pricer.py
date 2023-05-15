@@ -10,6 +10,7 @@ class TestPricing(unittest.TestCase):
     currencyCode: str = "EUR"
     regionName = "westeurope"
     fixtureFilePricingResponse = "test/unit/azbaseliner/fixtures/response.pricing.001.json"
+    fixtureFilePricingResponseItems = "test/unit/azbaseliner/fixtures/response.pricing.001.items.json"
     meterIdList = ["f1a44e37-1c48-567c-a0e0-b55263ef5ceb", "ef8e981f-27ae-50ae-9145-a36ec129424e"]
 
     def loadJsonFile(self, path: str) -> dict:
@@ -27,8 +28,8 @@ class TestPricing(unittest.TestCase):
         self.assertEqual(f"https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&currencyCode={self.currencyCode}", queryUrl)
 
     def test_003_group_records_by_meterid(self) -> None:
-        fixture = self.loadJsonFile(self.fixtureFilePricingResponse)
-        mapPerMeterId = PricingAPIClient._groupRecordsByMeterId(fixture[PricingAPIConstants.KEY_ITEMS])
+        fixture = self.loadJsonFile(self.fixtureFilePricingResponseItems)
+        mapPerMeterId = PricingAPIClient._groupRecordsByMeterId(fixture)
 
         self.assertEqual(len(mapPerMeterId.keys()), 2)
         for meterId in self.meterIdList:
@@ -49,9 +50,9 @@ class TestPricing(unittest.TestCase):
 
     def test_005_get_offer_monthly_price_for_meter_id_list_with_http_mocked(self) -> None:
         # mock the http call return with a json fixture
-        with patch.object(PricingAPIClient, "_execAPICall") as mockedMethod:
+        with patch.object(PricingAPIClient, "_execCallAndReturnItems") as mockedMethod:
             fixture = self.loadJsonFile(self.fixtureFilePricingResponse)
-            mockedMethod.return_value = fixture
+            mockedMethod.return_value = fixture[PricingAPIConstants.KEY_ITEMS]
             # perform the test with patched method
             prices: list = PricingAPIClient().getOfferMonthlyPriceForMeterIdList(self.regionName, self.meterIdList, self.currencyCode)
             self.assertEqual(len(prices), len(self.meterIdList))

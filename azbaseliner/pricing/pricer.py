@@ -5,6 +5,7 @@ from azbaseliner.util.collections import ListUtils
 import requests
 import os
 import json
+from datetime import datetime
 
 
 @dataclass
@@ -36,6 +37,7 @@ class PricingAPIConstants(object):
     KEY_SAVINGS_PLAN: str = "savingsPlan"
     KEY_UNIT_PRICE: str = "unitPrice"
     KEY_ITEMS: str = "Items"
+    KEY_NEXT_PAGE_LINK: str = "NextPageLink"
 
     QUERY_PARAM_CURRENCY_CODE: str = "currencyCode"
     QUERY_PARAM_CURRENCY_VALUE_EUR: str = "EUR"
@@ -76,23 +78,28 @@ class PricingAPIClient(object):
     @classmethod
     def __dumpResponseForDebug(ctx, data: dict) -> None:
         if os.getenv("AZB_DUMP_REST_PAYLOADS") is not None:
-            with open("capture.json", "w") as f:
+            tempDate = "{:%Y%m%H%M%S%s}".format(datetime.now())
+            with open(f"capture.{tempDate}.json", "w") as f:
                 json.dump(data, f)
 
     @classmethod
-    def _execAPICall(ctx, queryUrl: str, queryFilters: str) -> dict:
-        """executes the REST call to the Azure Pricing API and returns the payload"""
-        ctx.logger.info(f"invoking azure pricing api on url {queryUrl}&$filter={queryFilters}")
-        url = f"{queryUrl}&{PricingAPIConstants.QUERY_FILTER}={queryFilters}"
+    def _execCallAndReturnItems(ctx, url: str) -> list:
+        """executes rest call and returns the items from the response, manages multi page responses"""
+        items: list = list()
+        ctx.logger.info(f"invoking pricing api on url {url}")
         response = requests.get(url, headers=PricingAPIConstants.API_CALL_HEADERS)
+        message = f"rest call on {url} returned status {response.status_code}"
         if response.ok:
-            ctx.logger.info(f"request ok, status code is {response.status_code}")
+            ctx.logger.info(message)
             data = response.json()
             ctx.__dumpResponseForDebug(data)
-            return data
+            items = items + data[PricingAPIConstants.KEY_ITEMS]
+            if data[PricingAPIConstants.KEY_NEXT_PAGE_LINK] is not None:
+                nextUrl: str = data[PricingAPIConstants.KEY_NEXT_PAGE_LINK]
+                items = items + ctx._execCallAndReturnItems(nextUrl)
         else:
-            ctx.logger.error(f"request failed with status code {response.status_code}")
-            return dict()
+            ctx.logger.error(message)
+        return items
 
     @classmethod
     def _parseItemsForMeterId(ctx, meterId: str, regionName: str, currencyCode: str, items: list) -> MonthlyPlanPricing:
@@ -141,7 +148,8 @@ class PricingAPIClient(object):
         recordsPerMeterId: dict = dict()
         listOfMeterIdList: list = ListUtils.splitIntoChunks(meterIds, PricingAPIConstants.MAX_METER_IDS_PER_REQUEST)
         for meterIdList in listOfMeterIdList:
-            responseData: dict = ctx._execAPICall(ctx._buildQueryUrl(currencyCode), ctx._buildQueryFilter(regionName, meterIdList))
-            mapRecordsPerMeterId: dict = ctx._groupRecordsByMeterId(responseData[PricingAPIConstants.KEY_ITEMS])
+            url: str = f"{ctx._buildQueryUrl(currencyCode)}&{PricingAPIConstants.QUERY_FILTER}={ctx._buildQueryFilter(regionName, meterIdList)}"
+            responseItems: dict = ctx._execCallAndReturnItems(url)
+            mapRecordsPerMeterId: dict = ctx._groupRecordsByMeterId(responseItems)
             recordsPerMeterId = recordsPerMeterId | mapRecordsPerMeterId
         return ctx._getPricingRecords(regionName, currencyCode, recordsPerMeterId)

@@ -38,3 +38,10 @@ class TestPricingServiceIntegration(unittest.TestCase):
                 self.assertEqual(price.ri1y, 53.8)
                 self.assertEqual(price.sp3y, 43.4)
                 self.assertEqual(price.sp1y, 62.19)
+
+    def test_002_multipage_response(self) -> None:
+        # gather all pricing for all meterNames starting with DS
+        url = "https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&currencyCode=EUR&$filter=armRegionName eq 'westeurope' and startswith(meterName,'DS')"
+        items: list = PricingAPIClient._execCallAndReturnItems(url)
+        # we expect 292 items obtained via 3 pages ( 2x100 items and 1x92 items)
+        self.assertEqual(len(items), 292)
