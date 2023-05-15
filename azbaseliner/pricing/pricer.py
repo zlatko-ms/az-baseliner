@@ -2,6 +2,8 @@ import logging
 from logging import Logger
 from dataclasses import dataclass
 import requests
+import os
+import json
 
 
 @dataclass
@@ -20,7 +22,7 @@ class MonthlyPlanPricing:
 class PricingAPIConstants(object):
     """'Holds constants for usage of the pricing API"""
 
-    API_ENDPOINT: str = "https://prices.azure.com/api/retail/prices?"
+    API_ENDPOINT: str = "https://prices.azure.com/api/retail/prices"
     API_VERSION: str = "api-version=2023-01-01-preview"
     API_CALL_HEADERS: dict = {"Content-Type": "application/json"}
 
@@ -66,23 +68,29 @@ class PricingAPIClient(object):
     def _buildQueryUrl(ctx, currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR) -> str:
         """builds the query url for a given currency code"""
         url: str = PricingAPIConstants.API_ENDPOINT + "?" + PricingAPIConstants.API_VERSION + "&" + PricingAPIConstants.QUERY_PARAM_CURRENCY_CODE + "=" + currencyCode
+        ctx.logger.debug(f"query url : {url}")
         return url
 
     @classmethod
-    def _execCallAndReturnItems(ctx, queryUrl: str, queryFilters: str) -> list:
-        """executes the REST call to the Azure pricing API and returns a list of returned items"""
-        items: list = list()
-        ctx.logger.info(f"invoking azure pricing api on url {queryUrl}&{queryFilters}")
-        response = requests.get(queryUrl, params={PricingAPIConstants.QUERY_FILTER: queryFilters}, headers=PricingAPIConstants.API_CALL_HEADERS)
+    def __dumpResponseForDebug(ctx, data: dict) -> None:
+        if os.getenv("AZB_DUMP_REST_PAYLOADS") is not None:
+            with open("capture.json", "w") as f:
+                json.dump(data, f)
+
+    @classmethod
+    def _execAPICall(ctx, queryUrl: str, queryFilters: str) -> dict:
+        """executes the REST call to the Azure Pricing API and returns the payload"""
+        ctx.logger.info(f"invoking azure pricing api on url {queryUrl}&$filter={queryFilters}")
+        url = f"{queryUrl}&{PricingAPIConstants.QUERY_FILTER}={queryFilters}"
+        response = requests.get(url, headers=PricingAPIConstants.API_CALL_HEADERS)
         if response.ok:
-            ctx.logger.info(f"request ok, returned status code {response.status_code}")
+            ctx.logger.info(f"request ok, status code is {response.status_code}")
             data = response.json()
-            itemsFromResp = data[PricingAPIConstants.KEY_ITEMS]
-            for i in itemsFromResp:
-                items.append(i)
+            ctx.__dumpResponseForDebug(data)
+            return data
         else:
-            ctx.logger.error(f"azure pricing api returned status code {response.status_code}")
-        return items
+            ctx.logger.error(f"request failed with status code {response.status_code}")
+            return dict()
 
     @classmethod
     def _parseItemsForMeterId(ctx, meterId: str, regionName: str, currencyCode: str, items: list) -> MonthlyPlanPricing:
@@ -106,24 +114,28 @@ class PricingAPIClient(object):
         return monthlyPricing
 
     @classmethod
-    def getOfferMonthlyPriceForMeterIdList(ctx, regionName: str, meterIds: list, currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR) -> list:
-        """Queries the pricing offers for a list of meter Ids. Returns a list of MonthlyPlanPricing records, one by requested meter Id"""
-        # build the REST request url
-        queryFilter: str = ctx._buildQueryFilter(regionName, meterIds)
-        queryUrl: str = ctx._buildQueryUrl()
-        # call the rest API
-        items: list = ctx._execCallAndReturnItems(queryUrl, queryFilter)
-        # parse returned records, and store all records for a given meter id in a hash/dict, with meter id as key
+    def _groupRecordsByMeterId(ctx, items: list) -> dict:
+        """groups all records by meterId in a given dict"""
         mapPerMeterId: dict = dict()
         for item in items:
             meterId: str = item[PricingAPIConstants.KEY_METER_ID]
             if meterId not in mapPerMeterId.keys():
                 mapPerMeterId[meterId] = list()
             mapPerMeterId[meterId].append(item)
-        # now parse each of the meter ids, aka keys in the prevously populated hash/dict, to get the assiciated pricing record
+        return mapPerMeterId
+
+    @classmethod
+    def _getPricingRecords(ctx, regionName: str, currencyCode: str, mapRecordsPerMeterId: dict) -> list:
+        """parses records for each and every meterId and returns the corresponing plan pricing record"""
         pricingItems: list = list()
-        for meterId in mapPerMeterId.keys():
-            meterIdItems = mapPerMeterId[meterId]
+        for meterId in mapRecordsPerMeterId.keys():
+            meterIdItems = mapRecordsPerMeterId[meterId]
             pricingItems.append(ctx._parseItemsForMeterId(meterId, regionName, currencyCode, meterIdItems))
-        # return the list of pricing records
         return pricingItems
+
+    @classmethod
+    def getOfferMonthlyPriceForMeterIdList(ctx, regionName: str, meterIds: list, currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR) -> list:
+        """Queries the pricing offers for a list of meter Ids. Returns a list of MonthlyPlanPricing records, one by requested meter Id"""
+        responseData: dict = ctx._execAPICall(ctx._buildQueryUrl(currencyCode), ctx._buildQueryFilter(regionName, meterIds))
+        mapRecordsPerMeterId: dict = ctx._groupRecordsByMeterId(responseData[PricingAPIConstants.KEY_ITEMS])
+        return ctx._getPricingRecords(regionName, currencyCode, mapRecordsPerMeterId)

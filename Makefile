@@ -65,6 +65,13 @@ acceptance:
 	@echo "[>] ############################################"
 	@python3 -m behave uat/features
 
+acceptance-debug:
+	@echo "[>] ############################################"
+	@echo "[>] running uat from directory $(UATDIR)"
+	@echo "[>] ############################################"
+	@python3 -m behave uat/features --no-capture
+
+
 release:
 	@echo "[>] ############################################"
 	@echo "[>] building release package"
