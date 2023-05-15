@@ -1,6 +1,7 @@
 import logging
 from logging import Logger
 from dataclasses import dataclass
+from azbaseliner.util.collections import ListUtils
 import requests
 import os
 import json
@@ -43,6 +44,7 @@ class PricingAPIConstants(object):
     QUERY_PARAM_CURRENCY_CODE: str = "currencyCode"
 
     HOURS_IN_MONTH: int = 730
+    MAX_METER_IDS_PER_REQUEST: int = 20
 
 
 class PricingAPIClient(object):
@@ -136,6 +138,10 @@ class PricingAPIClient(object):
     @classmethod
     def getOfferMonthlyPriceForMeterIdList(ctx, regionName: str, meterIds: list, currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR) -> list:
         """Queries the pricing offers for a list of meter Ids. Returns a list of MonthlyPlanPricing records, one by requested meter Id"""
-        responseData: dict = ctx._execAPICall(ctx._buildQueryUrl(currencyCode), ctx._buildQueryFilter(regionName, meterIds))
-        mapRecordsPerMeterId: dict = ctx._groupRecordsByMeterId(responseData[PricingAPIConstants.KEY_ITEMS])
-        return ctx._getPricingRecords(regionName, currencyCode, mapRecordsPerMeterId)
+        recordsPerMeterId: dict = dict()
+        listOfMeterIdList: list = ListUtils.splitIntoChunks(meterIds, PricingAPIConstants.MAX_METER_IDS_PER_REQUEST)
+        for meterIdList in listOfMeterIdList:
+            responseData: dict = ctx._execAPICall(ctx._buildQueryUrl(currencyCode), ctx._buildQueryFilter(regionName, meterIdList))
+            mapRecordsPerMeterId: dict = ctx._groupRecordsByMeterId(responseData[PricingAPIConstants.KEY_ITEMS])
+            recordsPerMeterId = recordsPerMeterId | mapRecordsPerMeterId
+        return ctx._getPricingRecords(regionName, currencyCode, recordsPerMeterId)
