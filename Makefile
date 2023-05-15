@@ -2,14 +2,19 @@
 NAME:= "az-baseliner"
 RELNUM := $(shell cat RELEASE.txt)
 PACKAGENAME="$(NAME).rel.v$(RELNUM).tar.gz"
-UATDIR:= "uat/features"
+UATDIR:= "test/acceptance/features"
+UNITTESTDIR:= "./test/unit"
+INTEGTESTDIR:= "./test/integration"
+
 
 UNITTEST=test.azbaseliner.test_iotools.TestIOTools.test_listToFile
 
 all: clean dependencies format tests acceptance
 githubpipeline: pyformatcheck tests
 format: tounix pyformat pyformatcheck
-fulltests: tests acceptance
+tests: unit-tests
+buildtests: unit-tests integ-tests
+alltests: unit-tests integ-tests acceptance-tests
 
 dependencies:
 	@echo "[>] ############################################"
@@ -48,29 +53,35 @@ clean:
 	@rm -f "$(NAME).rel.*"
 	@find . -type d -name "__pycache__" | xargs rm -rf
 
-tests:
+unit-tests:
 	@echo "[>] ############################################"
 	@echo "[>] running unit tests"
 	@echo "[>] ############################################"
-	@python3 -m nose2 -v -F
+	@python3 -m nose2 -v -F -s $(UNITTESTDIR) -t .
+
+integ-tests:
+	@echo "[>] ############################################"
+	@echo "[>] running integration tests"
+	@echo "[>] ############################################"
+	@python3 -m nose2 -v -F -s $(INTEGTESTDIR) -t .
 
 singletest:
 	@echo "[>] ############################################"
 	@echo "[>] running test $(UNITTEST)"
 	@echo "[>] ############################################"
-	@python3 -m nose2 -v $(UNITTEST)
+	@python3 -m nose2 -v $(UNITTEST) -s $(INTEGTESTDIR) -t .
 
-acceptance:
+acceptance-tests:
 	@echo "[>] ############################################"
 	@echo "[>] running uat from directory $(UATDIR)"
 	@echo "[>] ############################################"
-	@python3 -m behave uat/features
+	@python3 -m behave $(UATDIR)
 
-acceptance-debug:
+acceptance-tests-debug:
 	@echo "[>] ############################################"
 	@echo "[>] running uat from directory $(UATDIR)"
 	@echo "[>] ############################################"
-	@python3 -m behave uat/features --no-capture
+	@python3 -m behave $(UATDIR) --no-capture
 
 
 release:
