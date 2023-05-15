@@ -39,6 +39,6 @@ jobs:
     - name: Run Python Unit Tests
       run: |
         make unit-tests
-    - name: Run Python Unit Tests
+    - name: Run Python Integration Tests
       run: |
         make integ-tests
