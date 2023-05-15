@@ -9,6 +9,7 @@ UNITTEST=test.azbaseliner.test_iotools.TestIOTools.test_listToFile
 all: clean dependencies format tests acceptance
 githubpipeline: pyformatcheck tests
 format: tounix pyformat pyformatcheck
+fulltests: tests acceptance
 
 dependencies:
 	@echo "[>] ############################################"
