@@ -1,0 +1,22 @@
+name: Python Build
+
+on:
+  workflow_call:
+  workflow_dispatch:
+ 
+permissions:
+  contents: read
+
+jobs:
+  
+  coding:
+    uses: ./.github/workflows/build-coding-style.yml
+
+  unittest:
+    uses: ./.github/workflows/build-unit-tests.yml
+
+  coverage:
+    uses: ./.github/workflows/build-coverage-check.yml
+    
+
+  

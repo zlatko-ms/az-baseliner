@@ -1,0 +1,27 @@
+name: Action Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
+ 
+permissions:
+  contents: read
+
+jobs:
+  
+  ## invoke the python build & unit test process
+  python-build:
+    name: "Build and Test Python Code"
+    uses: ./.github/workflows/build-all.yml
+  
+  # ## invoke the integration test suite
+  # action-integration-tests:
+  #   name: "Action Integration Tests"
+  #   needs: python-build
+  #   uses: ./.github/workflows/it-all.yml
