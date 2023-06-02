@@ -37,7 +37,7 @@ jobs:
         cat /tmp/coverage
         # get coverage metrics
         expectedTotal=${{ env.PYTHON_COVERAGE_MIN_TOTAL }}
-        foundTotal=$(grep "TOTAL" /tmp/coverage | cut -f41 -d' ' | sed 's/\%//g')
+        foundTotal=$(grep "TOTAL" /tmp/coverage | cut -f46 -d' ' | sed 's/\%//g')
         echo "[INFO] Global    code coverage expected=$expectedTotal found=$foundTotal"
         # acceptance
         if [ $foundTotal -lt $expectedTotal ]; then
