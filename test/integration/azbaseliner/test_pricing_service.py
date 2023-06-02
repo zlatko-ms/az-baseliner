@@ -4,6 +4,10 @@ from azbaseliner.pricing.pricer import PricingAPIClient, MonthlyPlanPricing
 
 
 class TestPricingServiceIntegration(unittest.TestCase):
+    def assertPriceInRange(self, lower: float, upper: float, collected: float, counterName: str):
+        self.assertGreaterEqual(collected, lower, f"expecting {counterName} to be >= then {upper} but found value {collected}")
+        self.assertLessEqual(collected, upper, f"expecting {counterName} to be <= then {lower} but found value {collected}")
+
     def test_001_call_pricing_api_service(self) -> None:
         # given a region, currency code and two meter ids
         regionName = "westeurope"
@@ -28,16 +32,17 @@ class TestPricingServiceIntegration(unittest.TestCase):
             # and there is no records unrelated to our list have been provided
             self.assertTrue(price.meterId in meterIdList)
             # and the pricings are correct for each of the meters
+            # note : as the pricing fluctuates over time,  better asses a range then exact value
             if price.meterId == meterA:
-                self.assertEqual(price.ri3y, 115.55)
-                self.assertEqual(price.ri1y, 179.37)
-                self.assertEqual(price.sp3y, 166.87)
-                self.assertEqual(price.sp1y, 232.43)
+                self.assertPriceInRange(118.0, 120.0, price.ri3y, "price.ri3y")
+                self.assertPriceInRange(184.0, 186.0, price.ri1y, "price.ri1y")
+                self.assertPriceInRange(172.0, 174.0, price.sp3y, "price.sp3y")
+                self.assertPriceInRange(238.0, 240.0, price.sp1y, "price.sp1y")
             if price.meterId == meterB:
-                self.assertEqual(price.ri3y, 34.66)
-                self.assertEqual(price.ri1y, 53.8)
-                self.assertEqual(price.sp3y, 43.4)
-                self.assertEqual(price.sp1y, 62.19)
+                self.assertPriceInRange(34.0, 36.0, price.ri3y, "price.ri3y")
+                self.assertPriceInRange(55.0, 57.0, price.ri1y, "price.ri1y")
+                self.assertPriceInRange(44.0, 46.0, price.sp3y, "price.ri3y")
+                self.assertPriceInRange(63.0, 65.0, price.sp1y, "price.sp1y")
 
     def test_002_multipage_response(self) -> None:
         # gather all pricing for all meterNames starting with DS
