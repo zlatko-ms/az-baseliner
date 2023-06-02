@@ -17,6 +17,10 @@ jobs:
 
   coverage:
     uses: ./.github/workflows/build-coverage-check.yml
+
+  integration:
+    needs: [ coding, unittest , coverage ]
+    uses: ./.github/workflows/build-it.yml
     
 
   

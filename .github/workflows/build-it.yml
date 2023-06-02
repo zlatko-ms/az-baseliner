@@ -1,0 +1,41 @@
+name: Python Integration Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-python-unit:
+    name: Run Python Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - uses: zlatko-ms/envarfiles@v3
+      with:
+        paths: ./conf/buildvars.properties
+
+
+    - name: Setup Python ${{ env.PYTHON_VERSION }} interpreter
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Setup Python dependency modules
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ./conf/python/build.txt -r ./conf/python/runtime.txt
+
+    - name: Run Integration Tests
+      run: |
+        python -m nose2 -v -F -s ${{ env.INTEG_TEST_DIR }} -t .
+
+
+    
+
+  
