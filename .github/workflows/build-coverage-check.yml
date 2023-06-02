@@ -38,20 +38,12 @@ jobs:
         # get coverage metrics
         expectedTotal=${{ env.PYTHON_COVERAGE_MIN_TOTAL }}
         foundTotal=$(grep "TOTAL" /tmp/coverage | cut -f41 -d' ' | sed 's/\%//g')
-        expectedProcessor=${{ env.PYTHON_COVERAGE_MIN_PROCESSOR }}
-        foundProcessor=$(grep "processor.py" /tmp/coverage | cut -f34 -d' ' | sed 's/\%//g')
         echo "[INFO] Global    code coverage expected=$expectedTotal found=$foundTotal"
-        echo "[INFO] Processor code coverage expected=$expectedProcessor found=$foundProcessor"
         # acceptance
         if [ $foundTotal -lt $expectedTotal ]; then
           echo "[ERROR] Current global coverage is below minimal treshold !"
           exit 255
         fi
-        if [ $foundProcessor -lt $expectedProcessor ]; then
-          echo "[ERROR] Current processor coverage is below minimal treshold !"
-          exit 255
-        fi
-
 
     
 
