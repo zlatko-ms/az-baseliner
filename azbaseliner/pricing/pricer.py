@@ -5,6 +5,7 @@ from azbaseliner.util.collections import ListUtils
 import requests
 import os
 import json
+import math
 from datetime import datetime
 
 
@@ -19,6 +20,7 @@ class MonthlyPlanPricing:
     ri1y: float = float("NaN")
     sp3y: float = float("NaN")
     sp1y: float = float("NaN")
+    paygo: float = float("NaN")
 
 
 class PricingAPIConstants(object):
@@ -38,9 +40,13 @@ class PricingAPIConstants(object):
     KEY_UNIT_PRICE: str = "unitPrice"
     KEY_ITEMS: str = "Items"
     KEY_NEXT_PAGE_LINK: str = "NextPageLink"
+    KEY_RETAIL_PRICE: str = "retailPrice"
+    KEY_TYPE: str = "type"
+    KEY_CONSUMPTION: str = "Consumption"
 
     QUERY_PARAM_CURRENCY_CODE: str = "currencyCode"
     QUERY_PARAM_CURRENCY_VALUE_EUR: str = "EUR"
+    QUERY_PARAM_CURRENCY_VALUE_USD: str = "USD"
     QUERY_FILTER: str = "$filter"
     QUERY_PARAM_REGION: str = "armRegionName"
     QUERY_PARAM_CURRENCY_CODE: str = "currencyCode"
@@ -106,6 +112,9 @@ class PricingAPIClient(object):
         """parses the pricing api response for a given meter id, returns the corresponsing MonthlyPlanPricing record"""
         monthlyPricing: MonthlyPlanPricing = MonthlyPlanPricing(meterId=meterId, regionName=regionName, currency=currencyCode)
         for item in items:
+            if math.isnan(monthlyPricing.paygo) and PricingAPIConstants.KEY_RETAIL_PRICE in item.keys() and item[PricingAPIConstants.KEY_TYPE] == PricingAPIConstants.KEY_CONSUMPTION:
+                monthlyPricing.paygo = round(float(item[PricingAPIConstants.KEY_RETAIL_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH, 2)
+
             if PricingAPIConstants.KEY_RESERVATION_TERM in item.keys():
                 if item[PricingAPIConstants.KEY_RESERVATION_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS:
                     monthlyPricing.ri3y = round(float(item[PricingAPIConstants.KEY_UNIT_PRICE]) / 3 / 12, 2)
@@ -116,9 +125,15 @@ class PricingAPIClient(object):
                 for itemSP in itemsSP:
                     if PricingAPIConstants.KEY_TERM in itemSP.keys():
                         if itemSP[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS:
-                            monthlyPricing.sp3y = round(float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH, 2)
+                            monthlyPricing.sp3y = round(
+                                float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH,
+                                2,
+                            )
                         if itemSP[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_1YEAR:
-                            monthlyPricing.sp1y = round(float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH, 2)
+                            monthlyPricing.sp1y = round(
+                                float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH,
+                                2,
+                            )
 
         return monthlyPricing
 
@@ -143,7 +158,12 @@ class PricingAPIClient(object):
         return pricingItems
 
     @classmethod
-    def getOfferMonthlyPriceForMeterIdList(ctx, regionName: str, meterIds: list, currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR) -> list:
+    def getOfferMonthlyPriceForMeterIdList(
+        ctx,
+        regionName: str,
+        meterIds: list,
+        currencyCode=PricingAPIConstants.QUERY_PARAM_CURRENCY_VALUE_EUR,
+    ) -> list:
         """Queries the pricing offers for a list of meter Ids. Returns a list of MonthlyPlanPricing records, one by requested meter Id"""
         recordsPerMeterId: dict = dict()
         listOfMeterIdList: list = ListUtils.splitIntoChunks(meterIds, PricingAPIConstants.MAX_METER_IDS_PER_REQUEST)

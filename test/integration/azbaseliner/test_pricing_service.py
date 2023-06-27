@@ -26,6 +26,7 @@ class TestPricingServiceIntegration(unittest.TestCase):
             self.assertFalse(math.isnan(price.ri3y))
             self.assertFalse(math.isnan(price.sp1y))
             self.assertFalse(math.isnan(price.sp3y))
+            self.assertFalse(math.isnan(price.paygo))
             # and all global fields (currency, region ) are correctly set up
             self.assertEqual(price.currency, currencyCode)
             self.assertEqual(price.regionName, regionName)
@@ -38,11 +39,13 @@ class TestPricingServiceIntegration(unittest.TestCase):
                 self.assertPriceInRange(184.0, 186.0, price.ri1y, "price.ri1y")
                 self.assertPriceInRange(172.0, 174.0, price.sp3y, "price.sp3y")
                 self.assertPriceInRange(238.0, 240.0, price.sp1y, "price.sp1y")
+                self.assertPriceInRange(312.0, 314.0, price.paygo, "price.paygo")
             if price.meterId == meterB:
                 self.assertPriceInRange(34.0, 36.0, price.ri3y, "price.ri3y")
                 self.assertPriceInRange(55.0, 57.0, price.ri1y, "price.ri1y")
                 self.assertPriceInRange(44.0, 46.0, price.sp3y, "price.ri3y")
                 self.assertPriceInRange(63.0, 65.0, price.sp1y, "price.sp1y")
+                self.assertPriceInRange(94.0, 95.0, price.paygo, "price.paygo")
 
     def test_002_multipage_response(self) -> None:
         # gather all pricing for all meterNames starting with DS

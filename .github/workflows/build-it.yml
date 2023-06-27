@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  build-python-unit:
+  build-python-integ:
     name: Run Python Integration Tests
     runs-on: ubuntu-latest
     steps:
