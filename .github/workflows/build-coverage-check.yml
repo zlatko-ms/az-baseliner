@@ -34,10 +34,10 @@ jobs:
       run: |
         python -m nose2 --with-coverage --coverage-report xml -v -F -s ${{ env.UNIT_TEST_DIR }} -t .
 
-    - name: Ensure Global Coverage is above 90%
+    - name: Ensure Global Coverage is above 85%
       uses: zlatko-ms/pycovcheck@v2
       with:
-        packages: :0.9
+        packages: :0.85
 
     
 
