@@ -33,6 +33,7 @@ class PricingAPIConstants(object):
     KEY_TERM: str = "term"
     VALUE_TERM_3YEARS: str = "3 Years"
     VALUE_TERM_1YEAR: str = "1 Year"
+    VALUE_COMPUTE = "Compute"
 
     KEY_RESERVATION_TERM: str = "reservationTerm"
     KEY_METER_ID: str = "meterId"
@@ -43,6 +44,7 @@ class PricingAPIConstants(object):
     KEY_RETAIL_PRICE: str = "retailPrice"
     KEY_TYPE: str = "type"
     KEY_CONSUMPTION: str = "Consumption"
+    KEY_SERVICE_FAMILY: str = "serviceFamily"
 
     QUERY_PARAM_CURRENCY_CODE: str = "currencyCode"
     QUERY_PARAM_CURRENCY_VALUE_EUR: str = "EUR"
@@ -108,33 +110,72 @@ class PricingAPIClient(object):
         return items
 
     @classmethod
+    def _itemIsSupportedForPricing(ctx, item: any) -> bool:
+        return PricingAPIConstants.KEY_SERVICE_FAMILY in item.keys() and item[PricingAPIConstants.KEY_SERVICE_FAMILY] == PricingAPIConstants.VALUE_COMPUTE
+
+    @classmethod
+    def _itemHasConsumptionPricing(ctx, item: any) -> bool:
+        return item[PricingAPIConstants.KEY_TYPE] == PricingAPIConstants.KEY_CONSUMPTION
+
+    @classmethod
+    def _itemHasRetailPrice(ctx, item: any) -> bool:
+        return PricingAPIConstants.KEY_RETAIL_PRICE in item.keys()
+
+    @classmethod
+    def _itemHasReservation(ctx, item: any) -> bool:
+        return PricingAPIConstants.KEY_RESERVATION_TERM in item.keys()
+
+    @classmethod
+    def _itemHas3YTerm(ctx, item: any) -> bool:
+        if PricingAPIConstants.KEY_RESERVATION_TERM in item.keys():
+            return item[PricingAPIConstants.KEY_RESERVATION_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS
+        if PricingAPIConstants.KEY_TERM in item.keys():
+            return item[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS
+
+    @classmethod
+    def _itemHas1YTerm(ctx, item: any) -> bool:
+        if PricingAPIConstants.KEY_RESERVATION_TERM in item.keys():
+            return item[PricingAPIConstants.KEY_RESERVATION_TERM] == PricingAPIConstants.VALUE_TERM_1YEAR
+        if PricingAPIConstants.KEY_TERM in item.keys():
+            return item[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_1YEAR
+
+    @classmethod
+    def _itemHasSavingsPlan(ctx, item: any) -> bool:
+        return PricingAPIConstants.KEY_SAVINGS_PLAN in item.keys()
+
+    @classmethod
     def _parseItemsForMeterId(ctx, meterId: str, regionName: str, currencyCode: str, items: list) -> MonthlyPlanPricing:
         """parses the pricing api response for a given meter id, returns the corresponsing MonthlyPlanPricing record"""
         monthlyPricing: MonthlyPlanPricing = MonthlyPlanPricing(meterId=meterId, regionName=regionName, currency=currencyCode)
         for item in items:
-            if math.isnan(monthlyPricing.paygo) and PricingAPIConstants.KEY_RETAIL_PRICE in item.keys() and item[PricingAPIConstants.KEY_TYPE] == PricingAPIConstants.KEY_CONSUMPTION:
-                monthlyPricing.paygo = round(float(item[PricingAPIConstants.KEY_RETAIL_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH, 2)
-
-            if PricingAPIConstants.KEY_RESERVATION_TERM in item.keys():
-                if item[PricingAPIConstants.KEY_RESERVATION_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS:
-                    monthlyPricing.ri3y = round(float(item[PricingAPIConstants.KEY_UNIT_PRICE]) / 3 / 12, 2)
-                if item[PricingAPIConstants.KEY_RESERVATION_TERM] == PricingAPIConstants.VALUE_TERM_1YEAR:
-                    monthlyPricing.ri1y = round(float(item[PricingAPIConstants.KEY_UNIT_PRICE]) / 12, 2)
-            if PricingAPIConstants.KEY_SAVINGS_PLAN in item.keys():
-                itemsSP = item[PricingAPIConstants.KEY_SAVINGS_PLAN]
-                for itemSP in itemsSP:
-                    if PricingAPIConstants.KEY_TERM in itemSP.keys():
-                        if itemSP[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_3YEARS:
+            if ctx._itemIsSupportedForPricing(item):
+                ## collect paygo pricing
+                if math.isnan(monthlyPricing.paygo) and ctx._itemHasRetailPrice(item) and ctx._itemHasConsumptionPricing(item):
+                    monthlyPricing.paygo = round(float(item[PricingAPIConstants.KEY_RETAIL_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH, 2)
+                ## collect reservation pricing
+                if ctx._itemHasReservation(item):
+                    if ctx._itemHas3YTerm(item):
+                        monthlyPricing.ri3y = round(float(item[PricingAPIConstants.KEY_UNIT_PRICE]) / 3 / 12, 2)
+                    if ctx._itemHas1YTerm(item):
+                        monthlyPricing.ri1y = round(float(item[PricingAPIConstants.KEY_UNIT_PRICE]) / 12, 2)
+                ## collect savings plan pricing
+                if ctx._itemHasSavingsPlan(item):
+                    itemsSP = item[PricingAPIConstants.KEY_SAVINGS_PLAN]
+                    for itemSP in itemsSP:
+                        if ctx._itemHas3YTerm(itemSP):
                             monthlyPricing.sp3y = round(
                                 float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH,
                                 2,
                             )
-                        if itemSP[PricingAPIConstants.KEY_TERM] == PricingAPIConstants.VALUE_TERM_1YEAR:
+                        if ctx._itemHas1YTerm(itemSP):
                             monthlyPricing.sp1y = round(
                                 float(itemSP[PricingAPIConstants.KEY_UNIT_PRICE]) * PricingAPIConstants.HOURS_IN_MONTH,
                                 2,
                             )
-
+            else:
+                ctx.logger.warn(
+                    f"meterId {item[PricingAPIConstants.KEY_METER_ID]} cannot be processed as its {PricingAPIConstants.KEY_SERVICE_FAMILY}={item[PricingAPIConstants.KEY_SERVICE_FAMILY]}. Only {PricingAPIConstants.VALUE_COMPUTE} can be priced for now!"
+                )
         return monthlyPricing
 
     @classmethod
